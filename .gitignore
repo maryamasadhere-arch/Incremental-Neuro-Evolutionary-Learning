@@ -6,3 +6,6 @@ results/
 results-*/
 *.egg-info/
 .venv/
+
+# Java
+java/target/

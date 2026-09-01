@@ -3,7 +3,23 @@
 
 Does evolving a *population* of networks resist catastrophic forgetting better
 than gradient descent on a single one? This project compares three learning
-conditions on the Split-MNIST continual-learning benchmark:
+conditions on the Split-MNIST continual-learning benchmark, in **two
+independent implementations**:
+
+* **Python** (`inel/`, root of this repo) — the primary implementation used
+  for day-to-day development and the results below. Fast to iterate on,
+  fully tested, uses NumPy for the dense numeric hot paths.
+* **Java + native C** (`java/`) — satisfies Objective O3's explicit
+  requirement ("implement... in Java") and report Sec. 3.6 ("implemented in
+  Java (SE 17)... ExecutorService... custom Java logger class... CSV
+  files"), with the EA condition's population fitness evaluation offloaded
+  to a small JNI native C kernel — the concrete answer to Sec. 3.9's own
+  observation that Java has "a performance overhead relative to optimised
+  C++ ... implementations" for exactly this kind of dense numeric loop. See
+  [`java/README.md`](java/README.md) for build/run instructions and how it
+  maps to the report.
+
+Both implementations run the same three conditions:
 
 1. **Baseline** — a standard backprop feedforward network, trained sequentially.
    Demonstrates catastrophic forgetting.
@@ -19,14 +35,14 @@ and Evolvability Ceiling (EC).
 
 ## Objectives → where they live
 
-| # | Objective | Implementation |
-|---|---|---|
-| O1 | Literature review | `docs/Farooq_Report_Ch1_Ch2_Ch3.docx` (project report, not code) |
-| O2 | Backprop baseline + forgetting measurement | `inel/models/backprop.py` |
-| O3 | 2007 EA replication | `inel/models/ea.py` |
-| O4 | Four-metric evaluation | `inel/metrics.py` |
-| O5 | NEAT extension | `inel/models/neat.py` |
-| O6 | Comparative analysis | `inel/pipeline.py`, `inel/report.py` |
+| # | Objective | Python | Java / C |
+|---|---|---|---|
+| O1 | Literature review | `docs/Farooq_Report_Ch1_Ch2_Ch3.docx` (project report, not code) | — |
+| O2 | Backprop baseline + forgetting measurement | `inel/models/backprop.py` | `java/.../inel/BackpropNet.java` |
+| O3 | 2007 EA replication **(report specifies Java)** | `inel/models/ea.py` | `java/.../inel/ea/EA.java` + native kernel `java/src/main/c/fitness_native.c` |
+| O4 | Four-metric evaluation | `inel/metrics.py` | `java/.../inel/Metrics.java` |
+| O5 | NEAT extension | `inel/models/neat.py` | `java/.../inel/neat/{NeatGenome,Neat}.java` |
+| O6 | Comparative analysis | `inel/pipeline.py`, `inel/report.py` | `java/.../inel/Pipeline.java` (CSV output) |
 
 ## Quick start
 
@@ -83,12 +99,9 @@ themselves are preserved, not rewritten.
 `--full` targets the report's Table 3.1 hyperparameters directly (see
 `config.py` docstrings for the exact cell each field maps to). Two deviations
 from the report are unavoidable and are called out explicitly in the code
-rather than left implicit:
+rather than left implicit (the Python implementation's language choice is
+no longer one of them — see the Java/C section below):
 
-* **Language.** The report specifies a Java implementation; this is a Python/
-  NumPy port. The algorithms (fixed-topology `(mu+lambda)`-ES with carry-over;
-  NEAT with innovation numbers, speciation, and fitness sharing) are
-  implemented as specified — only the host language differs.
 * **2007 EA hidden-layer size.** The report leaves this unspecified beyond
   "matching the original 2007 paper as closely as possible," which isn't
   recoverable from the report text alone. `EAConfig.hidden_units` documents
@@ -99,6 +112,60 @@ rather than left implicit:
   zero-hidden genome would need many generations of pure structural mutation
   before any hidden representation exists at all to evaluate. See the
   docstring in `inel/models/neat.py`.
+
+## Java + native C implementation (`java/`)
+
+The report's Objective O3 explicitly says "implement... in Java", and
+Sec. 3.6 specifies Java SE 17, `ExecutorService`-parallelised fitness
+evaluation (called out by name for NEAT), and CSV-based result logging via
+"a custom Java logger class". `java/` satisfies this literally — a
+from-scratch second implementation of all three conditions, not a
+transpilation of the Python one, validated the same way: 21 JUnit tests
+(including the identical Evolvability Ceiling regression tests as the
+Python suite) plus a real run against actual Split-MNIST data.
+
+Where Sec. 3.9 observes that Java carries "a performance overhead relative
+to optimised C++ ... implementations" for dense numeric evolutionary loops,
+`java/src/main/c/fitness_native.c` is that C implementation: a JNI-callable
+kernel that evaluates an entire EA population's classification accuracy in
+one native call (the same batched forward-pass-plus-accuracy operation
+`inel/models/ea.py` vectorises with NumPy's `einsum` on the Python side).
+It's wired up as an optional accelerator — `inel.ea.NativeFitness`
+transparently falls back to an identical pure-Java implementation if the
+native library hasn't been built or fails to load, so the Java build never
+hard-depends on a C toolchain being present; `EATest.nativeAndJavaFitnessAgree`
+asserts the two paths produce bit-identical results whenever the native
+library *is* available.
+
+```bash
+cd java
+export JAVA_HOME=/path/to/jdk-17-or-newer
+./build_native.sh          # optional: builds target/native/libfitness.{so,dylib}
+mvn test                   # 21 tests
+mvn package                # target/inel.jar
+java -Djava.library.path=target/native -jar target/inel.jar --quick
+java -Djava.library.path=target/native -jar target/inel.jar          # dev-scale, real Split-MNIST
+```
+
+NEAT's population-level parallelism uses a `java.util.concurrent.ExecutorService`
+fixed thread pool sized to `Runtime.getRuntime().availableProcessors()`,
+exactly as Sec. 3.6 describes. Results are written as CSV (not JSON, unlike
+the Python side) to `results-java/` — per-run accuracy matrices plus
+per-generation best/mean fitness (and species count, for NEAT) — matching
+the report's specified logging format directly. See `java/README.md` for
+the full breakdown.
+
+**A real dev-scale run** (3 runs, real Split-MNIST, `data/` shared read-only
+with the Python side since both read the same raw IDX files) reproduces the
+same core finding independently, with numbers close to but not identical to
+the Python run — expected, since the two use unrelated RNG streams:
+
+| Metric | Baseline | 2007 EA | NEAT |
+|---|---|---|---|
+| Mean RA (%) | 59.1 | 95.5 | 91.0 |
+| Mean FR (%) | 49.8 | 0.0 | 0.0 |
+| Mean FT (%) | 48.7 | 44.4 | 39.1 |
+| EC (/5) | 1.0 | 5.0 | 4.0 |
 
 ## Bugs fixed during the rewrite
 
