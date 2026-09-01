@@ -1,6 +1,5 @@
 # Incremental Neuro-Evolutionary Learning
 
-Farooq Haider · Keele University CSC-44120 · Supervisor: Dr Alastair Channon
 
 Does evolving a *population* of networks resist catastrophic forgetting better
 than gradient descent on a single one? This project compares three learning
