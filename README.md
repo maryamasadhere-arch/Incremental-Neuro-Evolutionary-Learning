@@ -30,9 +30,8 @@ and Evolvability Ceiling (EC).
 
 | # | Objective | Python | Java / C |
 |---|---|---|---|
-| O1 | Literature review | `docs/Farooq_Report_Ch1_Ch2_Ch3.docx` (project report, not code) | — |
 | O2 | Backprop baseline + forgetting measurement | `inel/models/backprop.py` | `java/.../inel/BackpropNet.java` |
-| O3 | 2007 EA replication **(report specifies Java)** | `inel/models/ea.py` | `java/.../inel/ea/EA.java` + native kernel `java/src/main/c/fitness_native.c` |
+| O3 | 2007 EA replication | `inel/models/ea.py` | `java/.../inel/ea/EA.java` + native kernel `java/src/main/c/fitness_native.c` |
 | O4 | Four-metric evaluation | `inel/metrics.py` | `java/.../inel/Metrics.java` |
 | O5 | NEAT extension | `inel/models/neat.py` | `java/.../inel/neat/{NeatGenome,Neat}.java` |
 | O6 | Comparative analysis | `inel/pipeline.py` | `java/.../inel/Pipeline.java` (CSV output) |
@@ -43,7 +42,7 @@ and Evolvability Ceiling (EC).
 pip install -r requirements.txt
 python main.py --quick          # offline smoke test, seconds, no network
 python main.py                  # dev-scale run, real Split-MNIST, ~2-3 minutes
-python main.py --full           # paper-scale run (Table 3.1) — slow, see below
+python main.py --full           # paper-scale run — slow, see below
 ```
 
 Each run writes `results/{baseline,ea2007,neat}.json` (raw per-run accuracy
@@ -88,7 +87,7 @@ themselves are preserved, not rewritten.
 |---|---|---|---|---|
 | `--quick` | synthetic, offline | tiny (pop ≤ 12, ≤ 15 generations, 1 run) | seconds | tests, CI, sanity checks |
 | *(default)* | real Split-MNIST, projected to 64 dims | pop 80, 60 generations, 3 runs | ~2-3 min | day-to-day development |
-| `--full` | real Split-MNIST, raw 784 dims | pop 50/150, 100/200 generations, 10 runs | long — run it deliberately | paper-scale reproduction of report Table 3.1 |
+| `--full` | real Split-MNIST, raw 784 dims | pop 50/150, 100/200 generations, 10 runs | long — run it deliberately | full paper-scale reproduction |
 
 NEAT's "minimal start": true NEAT begins with zero hidden nodes; this
 implementation starts from a small sparse hidden layer
@@ -122,8 +121,8 @@ See `java/README.md` for the full breakdown of this implementation.
 | Mean FT (%) | 48.6 | 45.4 | 37.2 |
 | EC (/5) | 1.0 | 5.0 | 1.0 |
 
-**Python, paper-scale `--full`** (10 runs, raw 784-dim Split-MNIST, report
-Table 3.1 hyperparameters; took ~5 hours, almost entirely in the NEAT condition):
+**Python, paper-scale `--full`** (10 runs, raw 784-dim Split-MNIST; took
+~5 hours, almost entirely in the NEAT condition):
 
 | Metric | Baseline | 2007 EA | NEAT |
 |---|---|---|---|
