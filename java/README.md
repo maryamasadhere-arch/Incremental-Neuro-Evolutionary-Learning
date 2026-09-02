@@ -1,17 +1,10 @@
 # Incremental Neuro-Evolutionary Learning — Java implementation
 
-A from-scratch second implementation of all three learning conditions,
-written to satisfy the project report's Objective O3 ("Implement the 2007
-paper's incremental evolutionary model in Java") and Sec. 3.6's
-architecture description (Java SE 17, `ExecutorService`-parallelised
-fitness evaluation, CSV result logging via a custom logger class). See the
-[root README](../README.md) for the project overview, objectives, and how
-this relates to the primary Python implementation.
 
 ## Build & run
 
 ```bash
-export JAVA_HOME=/path/to/jdk-17-or-newer   # JDK 21 also works; report specifies SE 17
+export JAVA_HOME=/path/to/jdk-17-or-newer   # JDK 21 also works; 
 
 ./build_native.sh      # optional: compiles the native C fitness kernel
                         # (gcc/clang required). Skip this and everything
@@ -31,10 +24,7 @@ classloader-relative search; omitting it (or not running `build_native.sh`
 at all) is fine — `NativeFitness.evalPopulation` falls back to a pure-Java
 implementation with identical semantics.
 
-CLI flags mirror the Python `cli.py`: `--quick` (tiny, offline, synthetic
-data), no flag (dev-scale, real Split-MNIST), `--full` (paper-scale, report
-Table 3.1), `--runs N` (override run count), `--data-dir`, `--results-dir`
-(default `results-java/`).
+
 
 ## Architecture
 
@@ -50,7 +40,7 @@ java/
     Mnist.java                    IDX download/read + Split-MNIST split + synthetic fallback
     Activations.java              sigmoid / relu
     Fmt.java                      shared console-formatting helper
-    CsvLogger.java                the "custom Java logger class" (report Sec. 3.6)
+    CsvLogger.java                the "custom Java logger class" 
     BackpropNet.java              Condition 1 (O2)
     Metrics.java                  RA / FR / FT / EC (O4) - same corrected EC logic as Python
     Pipeline.java                 orchestrates data -> 3 conditions -> metrics -> CSV
@@ -77,9 +67,7 @@ Python implementation. NEAT's population has *ragged, per-genome* topology
 genome), which doesn't lend itself to the same kind of batched native
 kernel without a much larger effort (a real payoff would need a custom
 sparse-graph IR compiled per genome). NEAT is parallelised instead across
-CPU cores via `ExecutorService`, exactly as the report's Sec. 3.6
-describes - "the fitness evaluation of large NEAT populations" is the one
-place it explicitly names that approach.
+CPU cores via `ExecutorService`, 
 
 **Native kernel is unoptimised on purpose.** `fitness_native.c` is a
 straightforward triple-nested loop, not a BLAS-backed or SIMD-vectorised
@@ -102,14 +90,3 @@ and both are validated to reproduce the *same qualitative finding*
 (catastrophic forgetting in the baseline, ~0% forgetting in both
 evolutionary conditions) - but exact numbers will never match bit-for-bit
 between the two, and that's expected, not a bug.
-
-## Known gaps versus the Python implementation
-
-- No figure/plotting equivalent to `inel/report.py` - CSV output only, per
-  the report's specified format. Plotting the CSVs (e.g. with a
-  spreadsheet, or a small script) is straightforward if needed.
-- Not yet run at `--full` (paper) scale - only `--quick` and dev-scale have
-  been executed end-to-end. At paper-scale hyperparameters (Table 3.1),
-  expect the NEAT condition in particular to take a long time, matching
-  the same caveat already documented for the Python implementation's
-  `--full` preset.
