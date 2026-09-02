@@ -30,6 +30,27 @@ public final class EA {
         return fits;
     }
 
+    /**
+     * Gaussian mutation (report Sec. 3.4.2): each offspring is produced from
+     * a single randomly-chosen parent (drawn from the fittest {@code nPar}
+     * of {@code pop}) by perturbing every weight with independent
+     * N(0, sigma^2) noise, i.e. w' = w + N(0, sigma^2). No crossover /
+     * recombination between two parents is used here - matching the 2007
+     * model being replicated, which is a (mu+lambda) Evolution Strategy
+     * (mutation-only reproduction), not a genetic algorithm.
+     */
+    public static double[][] mutate(double[][] pop, int nPar, int nOffspring, double sigma, Random rng) {
+        int genomeLen = pop[0].length;
+        double[][] offspring = new double[nOffspring][genomeLen];
+        for (int o = 0; o < nOffspring; o++) {
+            int parent = rng.nextInt(nPar);
+            for (int k = 0; k < genomeLen; k++) {
+                offspring[o][k] = pop[parent][k] + rng.nextGaussian() * sigma;
+            }
+        }
+        return offspring;
+    }
+
     public static TaskResult eaTask(double[][] taskX, double[] taskY, List<double[]> carryover,
                                      long seed, int nIn, Config.EAConfig cfg) {
         return eaTask(taskX, taskY, carryover, seed, nIn, cfg, null, 0, 0);
@@ -57,13 +78,7 @@ public final class EA {
         int nPar = Math.max(1, cfg.mu() / 3);
 
         for (int gen = 0; gen < cfg.nGen(); gen++) {
-            double[][] offs = new double[cfg.lambda()][G];
-            for (int o = 0; o < cfg.lambda(); o++) {
-                int parent = rng.nextInt(nPar);
-                for (int k = 0; k < G; k++) {
-                    offs[o][k] = pop[parent][k] + rng.nextGaussian() * cfg.sigma();
-                }
-            }
+            double[][] offs = mutate(pop, nPar, cfg.lambda(), cfg.sigma(), rng);
             double[] of = evalPop(offs, taskX, taskY, nIn, nH);
 
             double[][] allPop = new double[pop.length + offs.length][];

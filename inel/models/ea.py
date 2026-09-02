@@ -44,6 +44,20 @@ def eval_one(g: np.ndarray, X: np.ndarray, y: np.ndarray, n_in: int, n_h: int) -
     return float(np.mean((out >= 0.5) == (y >= 0.5)))
 
 
+def mutate(parents: np.ndarray, n_offspring: int, sigma: float, rng: np.random.Generator | None = None) -> np.ndarray:
+    """Gaussian mutation (report Sec. 3.4.2): each offspring is produced from
+    a single randomly-chosen parent by perturbing every weight with
+    independent N(0, sigma^2) noise, i.e. w' = w + N(0, sigma^2). No
+    crossover/recombination between two parents is used here - matching the
+    2007 model being replicated, which is a (mu+lambda) Evolution Strategy
+    (mutation-only reproduction), not a genetic algorithm."""
+    draw = np.random.randint if rng is None else rng.integers
+    randn = np.random.randn if rng is None else rng.standard_normal
+    parent_idx = draw(0, len(parents), n_offspring)
+    noise = (randn(n_offspring, parents.shape[1]) * sigma).astype(np.float32)
+    return parents[parent_idx] + noise
+
+
 def ea_task(task_X: np.ndarray, task_y: np.ndarray, carryover: list[np.ndarray],
             seed: int, n_in: int, cfg: EAConfig) -> tuple[np.ndarray, np.ndarray, list[np.ndarray]]:
     """(mu+lambda)-ES on one task episode. See module docstring for the
@@ -63,9 +77,7 @@ def ea_task(task_X: np.ndarray, task_y: np.ndarray, carryover: list[np.ndarray],
     n_par = max(1, cfg.mu // 3)
 
     for gen in range(cfg.n_gen):
-        idx = np.random.randint(0, n_par, cfg.lam)
-        noise = (np.random.randn(cfg.lam, G) * cfg.sigma).astype(np.float32)
-        offs = pop[idx] + noise
+        offs = mutate(pop[:n_par], cfg.lam, cfg.sigma)
         of = eval_population(offs, task_X, task_y, n_in, n_h)
         all_p = np.vstack([pop, offs])
         all_f = np.concatenate([fits, of])

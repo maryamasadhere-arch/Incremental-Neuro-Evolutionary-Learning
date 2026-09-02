@@ -1,7 +1,7 @@
 import numpy as np
 
 from inel.config import EAConfig
-from inel.models.ea import ea_task, eval_one, eval_population, genome_len
+from inel.models.ea import ea_task, eval_one, eval_population, genome_len, mutate
 
 
 def _linearly_separable(n=200, d=6, seed=0):
@@ -26,6 +26,34 @@ def test_eval_population_matches_eval_one():
     batched = eval_population(pop, X, y, n_in, n_h)
     single = np.array([eval_one(g, X, y, n_in, n_h) for g in pop])
     np.testing.assert_allclose(batched, single, atol=1e-6)
+
+
+def test_mutate_perturbs_a_single_parent_with_gaussian_noise():
+    """Gaussian mutation only (report Sec. 3.4.2): each offspring is exactly
+    one parent plus N(0, sigma^2) noise - no crossover between two parents."""
+    rng = np.random.RandomState(0)
+    parents = rng.uniform(-5, 5, (5, 8)).astype(np.float32)  # well-separated parents
+    sigma = 0.1
+    offspring = mutate(parents, n_offspring=20, sigma=sigma)
+
+    assert offspring.shape == (20, 8)
+    # a crossover/blend of two well-separated parents would land roughly
+    # midway between them; pure mutation keeps each child within a few
+    # sigma of exactly one parent
+    max_expected_dist = 5 * sigma * np.sqrt(parents.shape[1])
+    for child in offspring:
+        nearest = np.linalg.norm(parents - child, axis=1).min()
+        assert nearest < max_expected_dist, (
+            f"offspring at distance {nearest} from its nearest parent - "
+            f"too far for mutation-only reproduction"
+        )
+
+
+def test_mutate_with_zero_sigma_is_identity_over_parent_set():
+    parents = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
+    offspring = mutate(parents, n_offspring=50, sigma=0.0)
+    for child in offspring:
+        assert any(np.allclose(child, p) for p in parents)
 
 
 def test_ea_task_improves_over_random_init():
