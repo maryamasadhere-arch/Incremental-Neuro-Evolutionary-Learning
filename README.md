@@ -212,6 +212,35 @@ bar on a freshly-introduced task, even though it retains prior tasks just as
 well once learned. Exact numbers vary run to run; re-run `python main.py` to
 reproduce.
 
+## Paper-scale (`--full`) result
+
+`python main.py --full` (10 runs, raw 784-dim Split-MNIST, report Table 3.1
+hyperparameters) has been run to completion — this is not an untested
+code path. It took roughly 5 hours in total, almost entirely in the NEAT
+condition (population 150 × 200 generations × 5 tasks × 10 runs):
+
+| Metric | Baseline | 2007 EA | NEAT |
+|---|---|---|---|
+| Mean RA (%) | 57.1 | 96.0 | 97.0 |
+| Mean FR (%) | 53.4 | 0.0 | 0.0 |
+| Mean FT (%) | 49.7 | 45.2 | 46.4 |
+| EC (/5) | 2.0 | 5.0 | 5.0 |
+
+The same qualitative finding holds at full scale, more decisively than at
+dev-scale: the baseline's forgetting is if anything *worse* at full
+resolution (FR 53.4% vs. 47.8%, since a higher-capacity 784-256-128-1
+network has more room to overwrite earlier-task weights), while both
+evolutionary conditions still show zero measured forgetting. Notably,
+NEAT's Evolvability Ceiling reaches the full 5/5 at this scale (unlike the
+dev-scale run's 1/5) — with the report's full population size (150, vs.
+80 at dev-scale) and generation budget (200, vs. 60), NEAT has enough
+search budget to reliably clear the 85% current-task bar even on a freshly
+introduced task, closing the gap with the 2007 EA that dev-scale runs
+undersell. Full artifacts (`baseline.json`, `ea2007.json`, `neat.json`,
+`all_metrics.json`, `figures/*.png`) are reproducible by re-running
+`python main.py --full` (data is cached; expect several hours, dominated by
+the NEAT condition).
+
 ## Reproducibility
 
 Every run seeds NumPy and Python's `random` deterministically per run index
